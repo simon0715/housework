@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: http-server-deployment
+  labels:
+    app: http-server-dp
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: http-server-dp
+  template:
+    metadata:
+      labels:
+        app: http-server-dp
+    spec:
+      containers:
+        - image: golang:1.17
+          name: http-server
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          args:
+            - /bin/sh
+            - -c
+            - go run main.go
+          volumeMounts:
+            - name: host-path-app-volume
+              mountPath: /go
+            - name: app-logs
+              mountPath: /var/logs
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1000Mi
+            requests:
+              cpu: 500m
+              memory: 500Mi
+          env:
+            - name: VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: http-server-config
+                  key: version
+            - name: ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: http-server-config
+                  key: env
+      volumes:
+        - name: host-path-app-volume
+          hostPath:
+            path: /root
+            type: Directory
+        - name: app-logs
+          hostPath:
+            path: /data/logs
+            type: Directory
